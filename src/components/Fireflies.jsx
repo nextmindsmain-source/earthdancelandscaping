@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const COUNT = 260
+const COUNT = typeof window !== 'undefined' && window.innerWidth < 768 ? 110 : 260
 
 function Motes() {
   const ref = useRef()
@@ -71,9 +71,18 @@ function Motes() {
 }
 
 export default function Fireflies({ className = '' }) {
+  const box = useRef(null)
+  const [visible, setVisible] = useState(true)
+  useEffect(() => {
+    // Stop rendering once the hero is off screen, so phones are not drawing particles nobody can see.
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting))
+    io.observe(box.current)
+    return () => io.disconnect()
+  }, [])
+
   return (
-    <div className={className} aria-hidden="true">
-      <Canvas camera={{ position: [0, 0, 6], fov: 55 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: false }}>
+    <div ref={box} className={className} aria-hidden="true">
+      <Canvas frameloop={visible ? 'always' : 'never'} camera={{ position: [0, 0, 6], fov: 55 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: false }}>
         <Motes />
       </Canvas>
     </div>

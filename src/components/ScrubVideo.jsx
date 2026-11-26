@@ -1,13 +1,11 @@
 import { useEffect, useRef } from 'react'
 
-// Phones, portrait tablets, short landscape phones and reduced motion get the still hero instead.
-export const STILL_GATES = [
-  '(max-width: 720px)',
-  '(orientation: portrait) and (max-width: 1024px)',
-  '(orientation: portrait) and (pointer: coarse)',
-  '(orientation: landscape) and (pointer: coarse) and (max-height: 560px)',
-  '(prefers-reduced-motion: reduce)',
-]
+// Only reduced-motion visitors get the still hero. Phones and tablets scrub the video too.
+export const STILL_GATES = ['(prefers-reduced-motion: reduce)']
+
+// On portrait screens a 16:9 clip is cropped hard, so the crop pans with the scroll: patio first, falls and willow last.
+const PAN_FROM = 30
+const PAN_TO = 68
 
 // Scroll progress (0..1) of `sectionRef` drives the video's currentTime.
 // Streams the file as a Blob (works on hosts without Range support), lerps, and gates seeks.
@@ -24,7 +22,7 @@ export default function ScrubVideo({ sectionRef, src, poster, className = '' }) 
 
     const progress = () => {
       const r = section.getBoundingClientRect()
-      const range = section.offsetHeight - window.innerHeight
+      const range = section.offsetHeight - video.parentElement.offsetHeight   // stage height stays put when the phone's address bar moves
       return Math.min(1, Math.max(0, -r.top / Math.max(1, range)))
     }
     const seek = (t) => {
@@ -44,7 +42,18 @@ export default function ScrubVideo({ sectionRef, src, poster, className = '' }) 
       const dt = Math.min(100, now - (last || now)); last = now
       shown += (target - shown) * (1 - Math.pow(1 - 0.16, dt / 16.667))
       if (Math.abs(target - shown) < 0.0005) { shown = target; raf = null; last = 0 } else raf = requestAnimationFrame(tick)
-      seek(shown * video.duration)
+      pan(shown)
+      if (video.duration) seek(shown * video.duration)
+    }
+    const portrait = window.matchMedia('(orientation: portrait)')
+    const pan = (p) => {
+      const pos = portrait.matches ? `${PAN_FROM + (PAN_TO - PAN_FROM) * p}% 50%` : ''
+      video.parentElement.querySelectorAll('.hero-media').forEach((el) => { el.style.objectPosition = pos })
+    }
+    // iOS Safari will not decode frames for a video that has never played, so play and pause it once.
+    const prime = () => {
+      if (!video.src) return
+      video.play().then(() => { video.pause(); busy = false; seek(progress() * video.duration) }).catch(() => {})
     }
     const onScroll = () => {
       target = progress()
@@ -70,12 +79,13 @@ export default function ScrubVideo({ sectionRef, src, poster, className = '' }) 
         }
         clearTimeout(wd)
         objectUrl = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }))
-        video.src = objectUrl
-        video.load()
-        video.addEventListener('canplay', () => {
+        video.addEventListener('loadeddata', () => {
           seek(progress() * video.duration)
           section.classList.add('video-ready')
         }, { once: true })
+        video.src = objectUrl
+        video.load()
+        prime()
       } catch { video.style.display = 'none' }
     }
 
@@ -89,7 +99,9 @@ export default function ScrubVideo({ sectionRef, src, poster, className = '' }) 
     video.addEventListener('error', onError)
     mqls.forEach((m) => m.addEventListener('change', apply))
     apply()
+    window.addEventListener('touchstart', prime, { once: true, passive: true })   // covers Low Power Mode, which blocks the first prime
     return () => {
+      window.removeEventListener('touchstart', prime)
       window.removeEventListener('scroll', onScroll)
       mqls.forEach((m) => m.removeEventListener('change', apply))
       video.removeEventListener('seeked', onSeeked)
@@ -103,7 +115,7 @@ export default function ScrubVideo({ sectionRef, src, poster, className = '' }) 
   return (
     <video
       ref={videoRef}
-      className={`scrub-video absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 will-change-transform ${className}`}
+      className={`scrub-video hero-media absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 will-change-transform ${className}`}
       poster={poster}
       muted
       playsInline

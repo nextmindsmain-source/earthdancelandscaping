@@ -11,6 +11,9 @@ import Fireflies from './components/Fireflies'
 import ScrubVideo, { STILL_GATES } from './components/ScrubVideo'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
+ScrollTrigger.config({ ignoreMobileResize: true })
+
+const NAV = [['Work', '#work'], ['Maintenance', '#care'], ['About', '#about'], ['Contact', '#contact']]
 
 const PHONE = '(905) 321 1482'
 const PHONE_HREF = 'tel:+19053211482'
@@ -47,21 +50,56 @@ function Preloader({ done }) {
 }
 
 function Nav() {
+  const [open, setOpen] = useState(false)
+  const [solid, setSolid] = useState(false)
+  useEffect(() => {
+    // Solid only after the hero, which keeps the video clean.
+    const onScroll = () => {
+      const hero = document.getElementById('top')
+      setSolid(window.scrollY > (hero ? hero.offsetHeight - 80 : 0))
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => e.key === 'Escape' && setOpen(false)
+    document.documentElement.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => { document.documentElement.style.overflow = ''; window.removeEventListener('keydown', onKey) }
+  }, [open])
   return (
-    <header className="fixed inset-x-0 top-0 z-50"><div className="wrap flex items-center justify-between py-4">
+    <header className="fixed inset-x-0 top-0 z-50">
+      {open && (
+        <nav id="mobile-menu" aria-label="Mobile" className="fixed inset-0 flex h-dvh flex-col justify-center gap-6 bg-night px-6 md:hidden">
+          {NAV.map(([t, h]) => (
+            <a key={t} href={h} onClick={() => setOpen(false)} className="font-display text-5xl text-bone">{t}</a>
+          ))}
+          <a href={PHONE_HREF} className="label mt-6 inline-flex min-h-12 items-center text-olive">Call {PHONE}</a>
+        </nav>
+      )}
+      <div className={`pointer-events-none absolute inset-0 border-b border-bone/10 bg-night/90 backdrop-blur transition-opacity duration-300 wide:hidden ${solid && !open ? 'opacity-100' : 'opacity-0'}`} />
+      <div className="site-bar wrap relative flex items-center justify-between gap-3 py-3 md:py-4">
       <a href="#top" className="block rounded-xl bg-bone/95 px-3 py-1.5 backdrop-blur" aria-label="Earthdance Landscaping home">
         <img src="/img/logo.png" alt="Earthdance Landscaping" className="h-9 w-auto md:h-11" />
       </a>
       <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
-        {[['Work', '#work'], ['Maintenance', '#care'], ['About', '#about'], ['Contact', '#contact']].map(([t, h]) => (
+        {NAV.map(([t, h]) => (
           <a key={t} href={h} className="label text-bone/80 transition-colors hover:text-olive">{t}</a>
         ))}
       </nav>
+      <div className="flex items-center gap-2">
       <Magnet padding={60} magnetStrength={3}>
         <a href={PHONE_HREF} className="label inline-flex min-h-11 items-center rounded-full border border-olive/60 bg-night/40 px-5 py-2 text-olive backdrop-blur transition-colors hover:bg-olive hover:text-night">
-          {PHONE}
+          <span className="md:hidden">Call</span><span className="hidden md:inline">{PHONE}</span>
         </a>
       </Magnet>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="mobile-menu" aria-label={open ? 'Close menu' : 'Open menu'} className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-full border border-bone/40 bg-night/60 backdrop-blur md:hidden">
+        <span className={`h-px w-5 bg-bone transition-transform ${open ? 'translate-y-[3.5px] rotate-45' : ''}`} />
+        <span className={`h-px w-5 bg-bone transition-transform ${open ? '-translate-y-[3.5px] -rotate-45' : ''}`} />
+      </button>
+      </div>
     </div></header>
   )
 }
@@ -98,24 +136,24 @@ function Hero({ ready }) {
   }, { scope: root, dependencies: [ready] })
 
   return (
-    <section ref={root} id="top" className={`relative ${still ? 'h-screen' : 'h-[500vh]'}`}>
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
-        <img className="absolute inset-0 h-full w-full object-cover" src="/img/hero.jpg" alt="Luxury Niagara garden with pool and willow at golden hour" fetchPriority="high" />
+    <section ref={root} id="top" className={`relative ${still ? 'h-svh' : 'h-[420vh] md:h-[500vh]'}`}>
+      <div className="sticky top-0 h-lvh w-full overflow-hidden">
+        <img className="hero-media absolute inset-0 h-full w-full object-cover" src="/img/hero.jpg" alt="Luxury Niagara garden with pool and willow at golden hour" fetchPriority="high" />
         <ScrubVideo sectionRef={root} src="/img/hero-scrub.mp4" />
         <div className="vignette pointer-events-none absolute inset-0" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-night via-night/10 to-night/55" />
         <div className="hero-shade pointer-events-none absolute inset-0 bg-night/70 opacity-0" />
         <Fireflies className="pointer-events-none absolute inset-0" />
 
-        <div className="hero-copy relative z-10 flex h-full flex-col justify-end"><div className="wrap pb-16 md:pb-20">
-          <p className="label mb-5 text-olive">Landscape design + build · Niagara Falls &amp; St. Catharines</p>
+        <div className="hero-copy relative z-10 flex h-svh flex-col justify-end"><div className="wrap pb-8 md:pb-20">
+          <p className="hero-kicker label mb-4 text-olive md:mb-5">Landscape design + build · Niagara Falls &amp; St. Catharines</p>
           {ready && (
-            <h1 className="font-display text-[15vw] leading-[0.88] tracking-tight md:text-[9.5vw]">
+            <h1 className="hero-title font-display text-[15vw] leading-[0.88] tracking-tight md:text-[9.5vw]">
               <div><SplitText text="Gardens that" tag="span" className="" splitType="chars" delay={28} duration={1.1} from={{ opacity: 0, y: 70 }} to={{ opacity: 1, y: 0 }} textAlign="left" /></div>
               <div><SplitText text="move you." tag="span" className="italic text-olive" splitType="chars" delay={28} duration={1.1} from={{ opacity: 0, y: 70 }} to={{ opacity: 1, y: 0 }} textAlign="left" /></div>
             </h1>
           )}
-          <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="mt-5 flex flex-col gap-5 md:mt-8 md:flex-row md:items-end md:justify-between">
             <p className="hero-sub max-w-md text-base text-bone/85 md:text-lg" style={{ textShadow: '0 2px 20px rgba(7,31,23,.9)' }}>
               Award-winning residential and commercial landscapes, designed and built in the Niagara Region since 1996.
             </p>
@@ -130,12 +168,12 @@ function Hero({ ready }) {
 
         {!still && (
           <>
-            <div className="hero-mid pointer-events-none absolute inset-0 z-10 flex items-center opacity-0">
+            <div className="hero-mid pointer-events-none absolute inset-x-0 top-0 h-svh z-10 flex items-center opacity-0">
               <div className="wrap"><p className="max-w-3xl font-display text-5xl leading-[1.02] md:text-7xl" style={{ textShadow: '0 2px 30px rgba(7,31,23,.9)' }}>
                 Thirty years of Niagara gardens. <em className="text-olive">One standard.</em>
               </p></div>
             </div>
-            <div className="hero-end pointer-events-none absolute inset-x-0 bottom-0 z-10 pb-20 opacity-0">
+            <div className="hero-end pointer-events-none absolute inset-x-0 top-0 z-10 flex h-svh flex-col justify-end pb-16 opacity-0 md:pb-20">
               <div className="wrap"><p className="label mb-4 text-olive">Your turn</p>
               <p className="max-w-2xl font-display text-5xl leading-[1.02] md:text-7xl" style={{ textShadow: '0 2px 30px rgba(7,31,23,.9)' }}>
                 Walk the garden <em className="text-olive">before it exists.</em>
@@ -166,7 +204,7 @@ function Work() {
   const root = useRef(null)
   useGSAP(() => {
     const mm = gsap.matchMedia()
-    mm.add('(min-width: 768px)', () => {
+    mm.add('(min-width: 768px) and (min-height: 600px)', () => {
       const track = root.current.querySelector('.track')
       const dist = () => track.scrollWidth - window.innerWidth
       const tween = gsap.to(track, { x: () => -dist(), ease: 'none', scrollTrigger: { trigger: root.current, start: 'top top', end: () => '+=' + dist(), scrub: 0.7, pin: true, invalidateOnRefresh: true } })
@@ -175,7 +213,7 @@ function Work() {
       })
       gsap.to('.work-bar', { scaleX: 1, ease: 'none', scrollTrigger: { trigger: root.current, start: 'top top', end: () => '+=' + dist(), scrub: true } })
     })
-    mm.add('(max-width: 767px)', () => {
+    mm.add('(max-width: 767px), (max-height: 599px)', () => {
       gsap.utils.toArray('.panel').forEach((p) => {
         gsap.from(p, { opacity: 0, y: 60, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: p, start: 'top 85%' } })
       })
@@ -184,30 +222,30 @@ function Work() {
   }, { scope: root })
 
   return (
-    <section ref={root} id="work" className="relative overflow-hidden bg-moss md:h-screen">
+    <section ref={root} id="work" className="relative overflow-hidden bg-moss wide:h-screen">
       <div className="absolute inset-x-0 top-24 z-20">
         <div className="wrap"><p className="label text-olive">( What we build )</p></div>
       </div>
-      <div className="work-bar absolute inset-x-0 bottom-0 z-20 hidden h-1 origin-left scale-x-0 bg-olive md:block" />
-      <div className="track flex flex-col gap-10 pb-20 pt-40 track-pad md:h-full md:flex-row md:items-center md:gap-8 md:pb-0 md:pt-0">
-        <div className="shrink-0 md:w-[34vw]">
-          <h2 className="font-display text-6xl leading-[0.95] md:text-8xl">Five ways to <em className="text-olive">shape land.</em></h2>
+      <div className="work-bar absolute inset-x-0 bottom-0 z-20 hidden h-1 origin-left scale-x-0 bg-olive wide:block" />
+      <div className="track flex flex-col gap-10 pb-20 pt-40 track-pad wide:h-full wide:flex-row wide:items-center wide:gap-8 wide:pb-0 wide:pt-0">
+        <div className="shrink-0 wide:w-[34vw]">
+          <h2 className="font-display text-6xl leading-[0.95] wide:text-8xl">Five ways to <em className="text-olive">shape land.</em></h2>
           <p className="mt-6 max-w-sm text-bone/70">From a single garden bed to a full commercial campus, each project starts with the site and ends with something you want to walk through.</p>
         </div>
         {SERVICES.map((s) => (
-          <article key={s.n} className="panel relative shrink-0 overflow-hidden rounded-3xl md:h-[72vh] md:w-[56vw]">
-            <div className="relative aspect-[4/3] overflow-hidden md:absolute md:inset-0 md:aspect-auto">
-              <img className="panel-img absolute inset-0 h-full w-full object-cover md:w-[125%] md:max-w-none md:-left-[12.5%]" src={s.img} alt={s.title + ' by Earthdance Landscaping'} loading="lazy" />
+          <article key={s.n} className="panel relative shrink-0 overflow-hidden rounded-3xl wide:h-[72vh] wide:w-[56vw]">
+            <div className="relative aspect-[4/3] overflow-hidden wide:absolute wide:inset-0 wide:aspect-auto">
+              <img className="panel-img absolute inset-0 h-full w-full object-cover wide:w-[125%] wide:max-w-none wide:-left-[12.5%]" src={s.img} alt={s.title + ' by Earthdance Landscaping'} loading="lazy" />
             </div>
-            <div className="absolute inset-0 hidden bg-gradient-to-t from-night/90 via-night/10 to-transparent md:block" />
-            <div className="relative bg-night p-6 md:absolute md:inset-x-0 md:bottom-0 md:bg-transparent md:p-10">
+            <div className="absolute inset-0 hidden bg-gradient-to-t from-night/90 via-night/10 to-transparent wide:block" />
+            <div className="relative bg-night p-6 wide:absolute wide:inset-x-0 wide:bottom-0 wide:bg-transparent wide:p-10">
               <span className="label text-olive">{s.n} / 05</span>
-              <h3 className="mt-2 font-display text-4xl md:text-6xl">{s.title}</h3>
+              <h3 className="mt-2 font-display text-4xl wide:text-6xl">{s.title}</h3>
               <p className="mt-3 max-w-md text-bone/80">{s.text}</p>
             </div>
           </article>
         ))}
-        <div className="shrink-0 md:w-[20vw]" />
+        <div className="shrink-0 wide:w-[20vw]" />
       </div>
     </section>
   )
@@ -218,7 +256,8 @@ function Care() {
   useGSAP(() => {
     gsap.utils.toArray('.care-img').forEach((el) => {
       gsap.fromTo(el.querySelector('img'), { scale: 1.3 }, { scale: 1, ease: 'none', scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true } })
-      gsap.fromTo(el, { clipPath: 'inset(18% 12% 18% 12% round 28px)' }, { clipPath: 'inset(0% 0% 0% 0% round 28px)', ease: 'none', scrollTrigger: { trigger: el, start: 'top 90%', end: 'top 25%', scrub: true } })
+      const inset = window.innerWidth < 768 ? 'inset(6% 4% 6% 4% round 20px)' : 'inset(18% 12% 18% 12% round 28px)'
+      gsap.fromTo(el, { clipPath: inset }, { clipPath: 'inset(0% 0% 0% 0% round 28px)', ease: 'none', scrollTrigger: { trigger: el, start: 'top 90%', end: 'top 45%', scrub: true } })
     })
   }, { scope: root })
 
@@ -272,7 +311,7 @@ function Numbers() {
           <div
             ref={year}
             aria-label="1996"
-            className="year-fill select-none font-display text-[34vw] leading-[0.82] text-transparent md:text-[min(30vw,26rem)]"
+            className="year-fill select-none font-display text-[46vw] leading-[0.82] text-transparent md:text-[min(30vw,26rem)]"
             style={{ backgroundImage: 'linear-gradient(rgba(7,31,23,.15), rgba(7,31,23,.15)), url(/img/plantscapes.jpg)', backgroundSize: 'cover', backgroundPositionX: 'center', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextStroke: '1px rgba(183,194,60,.55)' }}
           >1996</div>
         </div>
@@ -354,7 +393,7 @@ export default function App() {
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduce) return
-    const lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.95 })
+    const lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.95, anchors: true })
     lenis.on('scroll', ScrollTrigger.update)
     const tick = (t) => lenis.raf(t * 1000)
     gsap.ticker.add(tick)
